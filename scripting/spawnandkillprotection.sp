@@ -6,7 +6,7 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.3.0 (ph)"
+#define PLUGIN_VERSION "1.3.0"
 
 #define PROTECTED_HEALTH 500
 
@@ -22,9 +22,9 @@
 *****************************************************************/
 
 public Plugin:myinfo = {
-	name = "Spawn & Kill protection (ph edition)",
-	author = "Berni, Chanz",
-	description = "Spawnprotection and Chat Kill Protection (ph edition)",
+	name = "Spawn & kill protection",
+	author = "Berni, Chanz, ph",
+	description = "	Spawn protection against spawnkilling and kill protection when you stand close to the wall for a longer time",
 	version = PLUGIN_VERSION,
 	url = "http://forums.alliedmods.net/showthread.php?p=901294"
 }
@@ -40,39 +40,39 @@ public Plugin:myinfo = {
 *****************************************************************/
 
 // ConVar Handles
-new Handle:version				= INVALID_HANDLE;
-new Handle:enabled				= INVALID_HANDLE;
-new Handle:walltime				= INVALID_HANDLE;
-new Handle:takedamage			= INVALID_HANDLE;
-new Handle:punishmode			= INVALID_HANDLE;
-new Handle:notify				= INVALID_HANDLE;
-new Handle:noblock				= INVALID_HANDLE;
-new Handle:disableonmoveshoot	= INVALID_HANDLE;
-new Handle:disabletime			= INVALID_HANDLE;
-new Handle:disabletime_team1	= INVALID_HANDLE;
-new Handle:disabletime_team2	= INVALID_HANDLE;
-new Handle:keypressignoretime	= INVALID_HANDLE;
-new Handle:keypressignoretime_team1	= INVALID_HANDLE;
-new Handle:keypressignoretime_team2	= INVALID_HANDLE;
-new Handle:maxspawnprotection	= INVALID_HANDLE;
-new Handle:maxspawnprotection_team1	= INVALID_HANDLE;
-new Handle:maxspawnprotection_team2	= INVALID_HANDLE;
-new Handle:fadescreen			= INVALID_HANDLE;
-new Handle:hidehud				= INVALID_HANDLE;
-new Handle:player_color_r		= INVALID_HANDLE;
-new Handle:player_color_g		= INVALID_HANDLE;
-new Handle:player_color_b		= INVALID_HANDLE;
-new Handle:player_color_a		= INVALID_HANDLE;
+new Handle:version                          = INVALID_HANDLE;
+new Handle:enabled                          = INVALID_HANDLE;
+new Handle:walltime                         = INVALID_HANDLE;
+new Handle:takedamage                       = INVALID_HANDLE;
+new Handle:punishmode                       = INVALID_HANDLE;
+new Handle:notify                           = INVALID_HANDLE;
+new Handle:noblock                          = INVALID_HANDLE;
+new Handle:disableonmoveshoot               = INVALID_HANDLE;
+new Handle:disabletime                      = INVALID_HANDLE;
+new Handle:disabletime_team1                = INVALID_HANDLE;
+new Handle:disabletime_team2                = INVALID_HANDLE;
+new Handle:keypressignoretime               = INVALID_HANDLE;
+new Handle:keypressignoretime_team1         = INVALID_HANDLE;
+new Handle:keypressignoretime_team2         = INVALID_HANDLE;
+new Handle:maxspawnprotection               = INVALID_HANDLE;
+new Handle:maxspawnprotection_team1         = INVALID_HANDLE;
+new Handle:maxspawnprotection_team2         = INVALID_HANDLE;
+new Handle:fadescreen                       = INVALID_HANDLE;
+new Handle:hidehud                          = INVALID_HANDLE;
+new Handle:player_color_r                   = INVALID_HANDLE;
+new Handle:player_color_g                   = INVALID_HANDLE;
+new Handle:player_color_b                   = INVALID_HANDLE;
+new Handle:player_color_a                   = INVALID_HANDLE;
 
 // Misc
-new bool:isKillProtected[MAXPLAYERS+1]		= { false, ... };
-new bool:isSpawnKillProtected[MAXPLAYERS+1]	= { false, ... };
-new bool:isWallKillProtected[MAXPLAYERS+1]	= { false, ... };
+new bool:isKillProtected[MAXPLAYERS+1]      = { false, ... };
+new bool:isSpawnKillProtected[MAXPLAYERS+1] = { false, ... };
+new bool:isWallKillProtected[MAXPLAYERS+1]  = { false, ... };
 new Handle:activeDisableTimer[MAXPLAYERS+1] = { INVALID_HANDLE, ... };
-new Float:keyPressOnTime[MAXPLAYERS+1]		= { 0.0, ... };
-new timeLookingAtWall[MAXPLAYERS+1]			= { 0, ... };
-new lastPlayerHealth[MAXPLAYERS+1]			= { 0, ... };
-new Handle:hudSynchronizer					= INVALID_HANDLE;
+new Float:keyPressOnTime[MAXPLAYERS+1]      = { 0.0, ... };
+new timeLookingAtWall[MAXPLAYERS+1]         = { 0, ... };
+new lastPlayerHealth[MAXPLAYERS+1]          = { 0, ... };
+new Handle:hudSynchronizer                  = INVALID_HANDLE;
 
 
 
@@ -91,36 +91,36 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 }
 
 public OnPluginStart()
-{	
-	// ConVars
-	version = CreateConVar("sakp_version", PLUGIN_VERSION, "Spawn & Kill Protection plugin version", FCVAR_PLUGIN|FCVAR_NOTIFY|FCVAR_DONTRECORD);
+{
+	// ConVars with sakp_ prefix
+	version                  = Sakp_CreateConVar("version", PLUGIN_VERSION, "Spawn & kill protection plugin version", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	// Set it to the correct version, in case the plugin gets updated...
 	SetConVarString(version, PLUGIN_VERSION);
 
-	enabled				= CreateConVar("sakp_enabled",				"1",	"Spawn & Kill Protection enabled", FCVAR_PLUGIN);
+	enabled                  = Sakp_CreateConVar("enabled", "1", "Spawn & Kill Protection enabled");
 	HookConVarChange(enabled, ConVarChange_Enabled);
-	walltime			= CreateConVar("sakp_walltime",				"4",	"How long a player has to look at a wall to get kill protection activated, set to -1 to disable", FCVAR_PLUGIN);
-	takedamage			= CreateConVar("sakp_takedamage",			"5",	"The amount of health to take from the player when shooting at protected players (when punishmode = 2)", FCVAR_PLUGIN);
-	punishmode			= CreateConVar("sakp_punishmode",			"0",	"0 = off, 1 = slap, 2 = decrease health 3 = slay, 4 = apply damage done to enemy", FCVAR_PLUGIN);
-	notify				= CreateConVar("sakp_notify",				"4",	"0 = off, 1 = HUD message, 2 = center message, 3 = chat message, 4 = auto", FCVAR_PLUGIN);
+	walltime                 = Sakp_CreateConVar("walltime", "4", "How long a player has to look at a wall to get kill protection activated, set to -1 to disable");
+	takedamage               = Sakp_CreateConVar("takedamage", "5", "The amount of health to take from the player when shooting at protected players (when punishmode = 2)");
+	punishmode               = Sakp_CreateConVar("punishmode", "0", "0 = off, 1 = slap, 2 = decrease health 3 = slay, 4 = apply damage done to enemy");
+	notify                   = Sakp_CreateConVar("notify", "4", "0 = off, 1 = HUD message, 2 = center message, 3 = chat message, 4 = auto");
 	HookConVarChange(notify, ConVarChange_Notify);
-	noblock				= CreateConVar("sakp_noblock",				"1",	"1 = enable noblock when protected, 0 = disabled feature", FCVAR_PLUGIN);
-	disableonmoveshoot	= CreateConVar("sakp_disableonmoveshoot",	"1",	"0 = don't disable, 1 = disable the spawnprotection when player moves or shoots, 2 = disable the spawn protection when shooting only", FCVAR_PLUGIN);
-	disabletime			= CreateConVar("sakp_disabletime",			"0",	"Time in seconds until the protection is removed after the player moved and/or shooted, 0 = immediately", FCVAR_PLUGIN);
-	disabletime_team1	= CreateConVar("sakp_disabletime_team1",	"-1",	"same as sakp_disabletime, but for team 2 only (overrides sakp_disabletime if not set to -1)", FCVAR_PLUGIN);
-	disabletime_team2	= CreateConVar("sakp_disabletime_team2",	"-1",	"same as sakp_disabletime, but for team 2 only (overrides sakp_disabletime if not set to -1)", FCVAR_PLUGIN);
-	keypressignoretime	= CreateConVar("sakp_keypressignoretime",	"0.8",	"The amount of time in seconds pressing any keys will not turn off spawn protection", FCVAR_PLUGIN);
-	keypressignoretime_team1	= CreateConVar("sakp_keypressignoretime_team1",	"-1",	"same as sakp_keypressignoretime, but for team 1 only (overrides sakp_keypressignoretime if not set to -1)", FCVAR_PLUGIN);
-	keypressignoretime_team2	= CreateConVar("sakp_keypressignoretime_team2",	"-1",	"same as sakp_keypressignoretime, but for team 1 only (overrides sakp_keypressignoretime if not set to -1)", FCVAR_PLUGIN);
-	maxspawnprotection	= CreateConVar("sakp_maxspawnprotection",	"0",	"max timelimit in seconds the spawnprotection stays, 0 = no limit",	FCVAR_PLUGIN);
-	maxspawnprotection_team1 = CreateConVar("sakp_maxspawnprotection_team1",	"-1",	"same as sakp_maxspawnprotection, but for team 1 only (overrides sakp_maxspawnprotection if not set to -1)",	FCVAR_PLUGIN);
-	maxspawnprotection_team2 = CreateConVar("sakp_maxspawnprotection_team2",	"-1",	"same as sakp_maxspawnprotection, but for team 2 only (overrides sakp_maxspawnprotection if not set to -1)",	FCVAR_PLUGIN);
-	fadescreen			= CreateConVar("sakp_fadescreen",			"1",	"Fade screen to black", FCVAR_PLUGIN);
-	hidehud				= CreateConVar("sakp_hidehud"	,			"1",	"Set to 1 to hide the HUD when being protected", FCVAR_PLUGIN);
-	player_color_r		= CreateConVar("sakp_player_color_red",		"255",	"amount of red when a player is protected 0-255", FCVAR_PLUGIN);
-	player_color_g		= CreateConVar("sakp_player_color_green",	"0",	"amount of green when a player is protected 0-255", FCVAR_PLUGIN);
-	player_color_b		= CreateConVar("sakp_player_color_blue",	"0",	"amount of blue when a player is protected 0-255", FCVAR_PLUGIN);
-	player_color_a		= CreateConVar("sakp_player_alpha",			"50",	"alpha amount of a protected player 0-255", FCVAR_PLUGIN);
+	noblock                  = Sakp_CreateConVar("noblock", "1", "1 = enable noblock when protected, 0 = disabled feature");
+	disableonmoveshoot       = Sakp_CreateConVar("disableonmoveshoot", "1", "0 = don't disable, 1 = disable the spawnprotection when player moves or shoots, 2 = disable the spawn protection when shooting only");
+	disabletime              = Sakp_CreateConVar("disabletime", "0", "Time in seconds until the protection is removed after the player moved and/or shooted, 0 = immediately");
+	disabletime_team1        = Sakp_CreateConVar("disabletime_team1", "-1", "same as sakp_disabletime, but for team 2 only (overrides sakp_disabletime if not set to -1)");
+	disabletime_team2        = Sakp_CreateConVar("disabletime_team2", "-1", "same as sakp_disabletime, but for team 2 only (overrides sakp_disabletime if not set to -1)");
+	keypressignoretime       = Sakp_CreateConVar("keypressignoretime", "0.8", "The amount of time in seconds pressing any keys will not turn off spawn protection");
+	keypressignoretime_team1 = Sakp_CreateConVar("keypressignoretime_team1", "-1", "same as sakp_keypressignoretime, but for team 1 only (overrides sakp_keypressignoretime if not set to -1)");
+	keypressignoretime_team2 = Sakp_CreateConVar("keypressignoretime_team2", "-1", "same as sakp_keypressignoretime, but for team 1 only (overrides sakp_keypressignoretime if not set to -1)");
+	maxspawnprotection       = Sakp_CreateConVar("maxspawnprotection", "0", "max timelimit in seconds the spawnprotection stays, 0 = no limit",FCVAR_PLUGIN);
+	maxspawnprotection_team1 = Sakp_CreateConVar("maxspawnprotection_team1", "-1", "same as sakp_maxspawnprotection, but for team 1 only (overrides sakp_maxspawnprotection if not set to -1)",FCVAR_PLUGIN);
+	maxspawnprotection_team2 = Sakp_CreateConVar("maxspawnprotection_team2", "-1", "same as sakp_maxspawnprotection, but for team 2 only (overrides sakp_maxspawnprotection if not set to -1)",FCVAR_PLUGIN);
+	fadescreen               = Sakp_CreateConVar("fadescreen", "1", "Fade screen to black");
+	hidehud                  = Sakp_CreateConVar("hidehud", "1", "Set to 1 to hide the HUD when being protected");
+	player_color_r           = Sakp_CreateConVar("player_color_red", "255", "amount of red when a player is protected 0-255");
+	player_color_g           = Sakp_CreateConVar("player_color_green", "0", "amount of green when a player is protected 0-255");
+	player_color_b           = Sakp_CreateConVar("player_color_blue", "0", "amount of blue when a player is protected 0-255");
+	player_color_a           = Sakp_CreateConVar("player_alpha", "50", "alpha amount of a protected player 0-255");
 
 	AutoExecConfig(true);
 	File_LoadTranslations("spawnandkillprotection.phrases");
@@ -635,4 +635,20 @@ NotifyClientDisableProtection(client) {
 	if(hudSynchronizer != INVALID_HANDLE) {
 		ClearSyncHud(client, hudSynchronizer);
 	}
+}
+
+Handle:Sakp_CreateConVar(
+		const String:name[],
+		const String:defaultValue[],
+		const String:description[]="",
+		flags=0,
+		bool:hasMin=false, Float:min=0.0, bool:hasMax=false, Float:max=0.0)
+{
+	decl String:newName[64];
+	decl String:newDescription[256];
+
+	Format(newName, sizeof(newName), "sakp_%s", name);
+	Format(newDescription, sizeof(newDescription), "Sourcemod Spawn & kill protection plugin:\n%s", description);
+
+	return CreateConVar(newName, defaultValue, newDescription, flags | FCVAR_PLUGIN, hasMin, min, hasMax, max);
 }
