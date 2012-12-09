@@ -6,9 +6,7 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.3.0"
-
-#define PROTECTED_HEALTH 500
+#define PLUGIN_VERSION "1.4.0"
 
 #define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN | IN_SPEED | IN_WALK | IN_GRENADE1 | IN_GRENADE2)
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
@@ -24,7 +22,7 @@
 public Plugin:myinfo = {
 	name = "Spawn & kill protection",
 	author = "Berni, Chanz, ph",
-	description = "	Spawn protection against spawnkilling and kill protection when you stand close to the wall for a longer time",
+	description = "Spawn protection against spawnkilling and kill protection when you stand close to the wall for a longer time",
 	version = PLUGIN_VERSION,
 	url = "http://forums.alliedmods.net/showthread.php?p=901294"
 }
@@ -46,7 +44,6 @@ new Handle:walltime                         = INVALID_HANDLE;
 new Handle:takedamage                       = INVALID_HANDLE;
 new Handle:punishmode                       = INVALID_HANDLE;
 new Handle:notify                           = INVALID_HANDLE;
-new Handle:noblock                          = INVALID_HANDLE;
 new Handle:disableonmoveshoot               = INVALID_HANDLE;
 new Handle:disabletime                      = INVALID_HANDLE;
 new Handle:disabletime_team1                = INVALID_HANDLE;
@@ -65,13 +62,13 @@ new Handle:player_color_b                   = INVALID_HANDLE;
 new Handle:player_color_a                   = INVALID_HANDLE;
 
 // Misc
+new bool:bNoBlock                           = true;
 new bool:isKillProtected[MAXPLAYERS+1]      = { false, ... };
 new bool:isSpawnKillProtected[MAXPLAYERS+1] = { false, ... };
 new bool:isWallKillProtected[MAXPLAYERS+1]  = { false, ... };
 new Handle:activeDisableTimer[MAXPLAYERS+1] = { INVALID_HANDLE, ... };
 new Float:keyPressOnTime[MAXPLAYERS+1]      = { 0.0, ... };
 new timeLookingAtWall[MAXPLAYERS+1]         = { 0, ... };
-new lastPlayerHealth[MAXPLAYERS+1]          = { 0, ... };
 new Handle:hudSynchronizer                  = INVALID_HANDLE;
 
 
@@ -92,6 +89,10 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 public OnPluginStart()
 {
+	if (!LibraryExists("sdkhooks")) {
+		SetFailState("[Spawn & Kill Protection] Error: needs sdkhooks 2.* or greater");
+	}
+
 	// ConVars with sakp_ prefix
 	version                  = Sakp_CreateConVar("version", PLUGIN_VERSION, "Spawn & kill protection plugin version", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	// Set it to the correct version, in case the plugin gets updated...
@@ -104,7 +105,8 @@ public OnPluginStart()
 	punishmode               = Sakp_CreateConVar("punishmode", "0", "0 = off, 1 = slap, 2 = decrease health 3 = slay, 4 = apply damage done to enemy");
 	notify                   = Sakp_CreateConVar("notify", "4", "0 = off, 1 = HUD message, 2 = center message, 3 = chat message, 4 = auto");
 	HookConVarChange(notify, ConVarChange_Notify);
-	noblock                  = Sakp_CreateConVar("noblock", "1", "1 = enable noblock when protected, 0 = disabled feature");
+	Sakp_CreateConVar("noblock", "1", "1 = enable noblock when protected, 0 = disabled feature");
+	HookConVarChange(enabled, ConVarChange_Noblock);
 	disableonmoveshoot       = Sakp_CreateConVar("disableonmoveshoot", "1", "0 = don't disable, 1 = disable the spawnprotection when player moves or shoots, 2 = disable the spawn protection when shooting only");
 	disabletime              = Sakp_CreateConVar("disabletime", "0", "Time in seconds until the protection is removed after the player moved and/or shooted, 0 = immediately");
 	disabletime_team1        = Sakp_CreateConVar("disabletime_team1", "-1", "same as sakp_disabletime, but for team 2 only (overrides sakp_disabletime if not set to -1)");
@@ -126,22 +128,33 @@ public OnPluginStart()
 	File_LoadTranslations("spawnandkillprotection.phrases");
 
 	HookEvent("player_spawn", Event_PlayerSpawn);
-	
+	HookEvent("player_death", Event_PlayerDeath);
+
 	// Hooking the existing clients in case of lateload
-	for (new client=1; client <= MaxClients; client++) {
-
-		if (!IsClientInGame(client)) {
-			continue;
-		}
-
-		SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
+	LOOP_CLIENTS(client, CLIENTFILTER_INGAME | CLIENTFILTER_NOBOTS) {
+		SDKHook(client, SDKHook_OnTakeDamage,  Hook_OnTakeDamage);
+		SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
 	}
-	
+
 	new value = GetConVarInt(notify);
 
 	if (value == 1 || value == 4) {
 		CreateTestHudSynchronizer();
 	}
+
+	RegAdminCmd("sm_enablekillprotection", Command_EnableKillProtection, ADMFLAG_ROOT);
+}
+
+public Action:Command_EnableKillProtection(client, args)
+{
+	new clientAimTarget = GetClientAimTarget(client, true);
+
+	if (clientAimTarget > 0) {
+		ReplyToCommand(client, "Enabling kill protection for player %N", clientAimTarget);
+		EnableKillProtection(clientAimTarget);
+	}
+
+	return Plugin_Handled;
 }
 
 public OnMapStart() 
@@ -166,19 +179,15 @@ public OnClientPutInServer(client)
 	isWallKillProtected[client] = false;
 	keyPressOnTime[client] = 0.0;
 	timeLookingAtWall[client] = 0;
-	lastPlayerHealth[client] = 0;
 	activeDisableTimer[client] = INVALID_HANDLE;
 
-	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
+	SDKHook(client, SDKHook_OnTakeDamage,  Hook_OnTakeDamage);
+	SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
 }
 
 public OnGameFrame() 
-{	
-	for (new client=1; client <= MaxClients; client++) {
-		
-		if (!IsClientInGame(client) || !IsPlayerAlive(client) || IsFakeClient(client)) {
-			continue;
-		}
+{
+	LOOP_CLIENTS(client, CLIENTFILTER_ALIVE | CLIENTFILTER_NOBOTS) {
 
 		if (isKillProtected[client]) {
 			
@@ -248,9 +257,16 @@ public ConVarChange_Enabled(Handle:convar, const String:oldValue[], const String
 	}
 }
 
-public Action:Timer_EnableSpawnProtection(Handle:timer, any:client)
+public ConVarChange_Noblock(Handle:convar, const String:oldValue[], const String:newValue[])
 {
-	if (!IsClientInGame(client) || !IsPlayerAlive(client)) {
+	bNoBlock = bool:StringToInt(newValue);
+}
+
+public Action:Timer_EnableSpawnProtection(Handle:timer, any:userId)
+{
+	new client = GetClientOfUserId(userId);
+
+	if (client == 0 || !IsClientInGame(client) || !IsPlayerAlive(client)) {
 		return Plugin_Stop;
 	}
 	
@@ -260,9 +276,11 @@ public Action:Timer_EnableSpawnProtection(Handle:timer, any:client)
 	return Plugin_Stop;
 }
 
-public Action:Timer_DisableSpawnProtection(Handle:timer, any:client)
+public Action:Timer_DisableSpawnProtection(Handle:timer, any:userId)
 {
-	if (!IsClientInGame(client) || !IsPlayerAlive(client)) {
+	new client = GetClientOfUserId(userId);
+
+	if (client == 0 || !IsClientInGame(client) || !IsPlayerAlive(client)) {
 		return Plugin_Stop;
 	}
 
@@ -278,12 +296,8 @@ public Action:Timer_CheckWall(Handle:timer)
 	if (!GetConVarBool(enabled) || (GetConVarInt(walltime) == -1)) {
 		return Plugin_Continue;
 	}
-	
-	for (new client=1; client<=MaxClients; client++) {
-		
-		if (!IsClientInGame(client) || IsFakeClient(client)) {
-			continue;
-		}
+
+	LOOP_CLIENTS(client, CLIENTFILTER_INGAME | CLIENTFILTER_NOBOTS) {
 		
 		if (Client_IsLookingAtWall(client) && !(Client_GetButtons(client) & KILLPROTECTION_DISABLE_BUTTONS)) {
 			
@@ -330,38 +344,57 @@ public Event_PlayerSpawn(Handle:event, const String:name[], bool:broadcast)
 	if (!GetConVarBool(enabled)) {
 		return;
 	}
-	
+
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	
+
 	if (IsFakeClient(client)) {
 		return;
 	}
 
 	isSpawnKillProtected[client] = true;
-	CreateTimer(0.1, Timer_EnableSpawnProtection, client, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.1, Timer_EnableSpawnProtection, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 
 	new Float:maxspawnprotection_value = GetMaxSpawnProtectionTime(client);
 
 	if (maxspawnprotection_value > 0.0) {
-		CreateTimer(maxspawnprotection_value + 0.1, Timer_DisableSpawnProtection, client, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(maxspawnprotection_value, Timer_DisableSpawnProtection, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
-public Action:OnTakeDamage(client, &inflictor, &attacker, &Float:damage, &damageType)
+public Event_PlayerDeath(Handle:event, const String:name[], bool:broadcast)
 {
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+
 	if (IsFakeClient(client)) {
-		return Plugin_Continue;
+		return;
 	}
-	
+
 	if (isKillProtected[client]) {
-		
-		ProtectedPlayerHurted(client, inflictor, RoundToFloor(damage));
-	
+		DisableKillProtection(client);
+	}
+}
+
+public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon,
+								Float:damageForce[3], Float:damagePosition[3], damagecustom)
+{
+	if (isKillProtected[victim]) {
+
+		ProtectedPlayerHurted(victim, inflictor, RoundToFloor(damage));
+
 		damage = 0.0;
 		return Plugin_Changed;
 	}
-	
+
 	return Plugin_Continue;
+}
+
+public bool:Hook_ShouldCollide(entity, collisiongroup, contentsmask, bool:originalResult)
+{
+	if (isKillProtected[entity] && bNoBlock) {
+		return false;
+	}
+
+	return true;
 }
 
 
@@ -386,11 +419,11 @@ Float:GetMaxSpawnProtectionTime(client)
 			maxspawnprotection_value = GetConVarFloat(maxspawnprotection_team2);
 		}
 	}
-	
+
 	if (maxspawnprotection_value < 0.0) {
 		maxspawnprotection_value = GetConVarFloat(maxspawnprotection);
 	}
-	
+
 	return maxspawnprotection_value;
 }
 
@@ -482,9 +515,9 @@ stock ProtectedPlayerHurted(client, inflictor, damage)
 	}
 }
 
-EnableKillProtection(client) {
-	
-	if (!IsPlayerAlive(client) || IsFakeClient(client)) {
+EnableKillProtection(client)
+{	
+	if (!IsPlayerAlive(client)) {
 		return;
 	}
 
@@ -494,15 +527,8 @@ EnableKillProtection(client) {
 	SetEntityRenderColor(client, GetConVarInt(player_color_r), GetConVarInt(player_color_g), GetConVarInt(player_color_b), GetConVarInt(player_color_a));
 
 	if (GetConVarBool(hidehud)) {
-		Client_SetHideHud(client, HIDEHUD_ALL);
+		Client_SetHideHud(client, HIDEHUD_WEAPONSELECTION | HIDEHUD_HEALTH | HIDEHUD_CROSSHAIR);
 	}
-
-	if (GetConVarBool(noblock)) {
-		Entity_SetCollisionGroup(client, COLLISION_GROUP_DEBRIS);
-	}
-	
-	lastPlayerHealth[client] = Entity_GetHealth(client);
-	Entity_SetHealth(client, PROTECTED_HEALTH, true);
 		
 	if (GetConVarBool(fadescreen)) {
 		Client_ScreenFade(client, 0, FFADE_OUT | FFADE_STAYOUT | FFADE_PURGE, -1, 0, 0, 0, 240);
@@ -511,12 +537,8 @@ EnableKillProtection(client) {
 	NotifyClientEnableProtection(client);
 }
 
-DisableKillProtection(client) {
-	
-	if (IsFakeClient(client)) {
-		return;
-	}
-	
+DisableKillProtection(client)
+{	
 	if (!isKillProtected[client]) {
 		return;
 	}
@@ -533,12 +555,6 @@ DisableKillProtection(client) {
 		if (GetConVarBool(hidehud)) {
 			Client_SetHideHud(client, 0);
 		}
-
-		if (GetConVarBool(noblock)) {
-			Entity_SetCollisionGroup(client, COLLISION_GROUP_PLAYER);
-		}
-
-		Entity_SetHealth(client, lastPlayerHealth[client], true);
 	}
 	
 	if (GetConVarBool(fadescreen)) {
@@ -548,11 +564,11 @@ DisableKillProtection(client) {
 	NotifyClientDisableProtection(client);
 }
 
-DisableKillProtectionAll() {
+DisableKillProtectionAll()
+{
+	LOOP_CLIENTS(client, CLIENTFILTER_ALIVE) {
 
-	for (new client=1; client <= MaxClients; client++) {
-
-		if (!IsClientInGame(client) || !IsPlayerAlive(client) || !isKillProtected[client]) {
+		if (!isKillProtected[client]) {
 			continue;
 		}
 
@@ -560,8 +576,8 @@ DisableKillProtectionAll() {
 	}
 }
 
-NotifyClientEnableProtection(client) {
-	
+NotifyClientEnableProtection(client)
+{
 	new notify_value = GetConVarInt(notify);
 
 	if (!notify_value) {
@@ -603,8 +619,8 @@ NotifyClientEnableProtection(client) {
 
 }
 
-NotifyClientDisableProtection(client) {
-	
+NotifyClientDisableProtection(client)
+{	
 	new notify_value = GetConVarInt(notify);
 	
 	if (isSpawnKillProtected[client]) {
