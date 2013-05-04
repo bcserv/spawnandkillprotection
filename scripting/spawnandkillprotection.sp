@@ -6,9 +6,9 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.4.3"
+#define PLUGIN_VERSION "1.4.2"
 
-#define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN | IN_SPEED | IN_WALK | IN_GRENADE1 | IN_GRENADE2)
+#define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN |  IN_WALK | IN_GRENADE1 | IN_GRENADE2 ) /* IN_SPEED |*/ 
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
 
 /*****************************************************************
@@ -198,7 +198,7 @@ public OnGameFrame()
 			}
 
 			new clientButtons = Client_GetButtons(client);
-			
+
 			if (!(clientButtons & KILLPROTECTION_DISABLE_BUTTONS)) {
 				continue;
 			}
