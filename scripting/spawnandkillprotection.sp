@@ -1,4 +1,4 @@
-
+		
 // enforce semicolons after each code statement
 #pragma semicolon 1
 
@@ -6,7 +6,7 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.4.2"
+#define PLUGIN_VERSION "1.4.3"
 
 #define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN | IN_SPEED | IN_WALK | IN_GRENADE1 | IN_GRENADE2)
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
@@ -264,10 +264,8 @@ public ConVarChange_Noblock(Handle:convar, const String:oldValue[], const String
 	bNoBlock = bool:StringToInt(newValue);
 }
 
-public Action:Timer_EnableSpawnProtection(Handle:timer, any:userId)
+public Action:Timer_EnableSpawnProtection(Handle:timer, any:client)
 {
-	new client = GetClientOfUserId(userId);
-
 	if (client == 0 || !IsClientInGame(client) || !IsPlayerAlive(client)) {
 		return Plugin_Stop;
 	}
@@ -278,10 +276,8 @@ public Action:Timer_EnableSpawnProtection(Handle:timer, any:userId)
 	return Plugin_Stop;
 }
 
-public Action:Timer_DisableSpawnProtection(Handle:timer, any:userId)
+public Action:Timer_DisableSpawnProtection(Handle:timer, any:client)
 {
-	new client = GetClientOfUserId(userId);
-
 	if (client == 0 || !IsClientInGame(client) || !IsPlayerAlive(client)) {
 		return Plugin_Stop;
 	}
@@ -289,7 +285,6 @@ public Action:Timer_DisableSpawnProtection(Handle:timer, any:userId)
 	activeDisableTimer[client] = INVALID_HANDLE;
 	isSpawnKillProtected[client] = false;
 	DisableKillProtection(client);
-	
 	return Plugin_Stop;
 }
 
@@ -302,7 +297,6 @@ public Action:Timer_CheckWall(Handle:timer)
 	LOOP_CLIENTS(client, CLIENTFILTER_INGAME | CLIENTFILTER_NOBOTS) {
 		
 		if (Client_IsLookingAtWall(client) && !(Client_GetButtons(client) & KILLPROTECTION_DISABLE_BUTTONS)) {
-			
 			if (!isWallKillProtected[client] && timeLookingAtWall[client] >= GetConVarInt(walltime)) {
 				
 				if (activeDisableTimer[client] != INVALID_HANDLE) {
@@ -317,13 +311,11 @@ public Action:Timer_CheckWall(Handle:timer)
 			timeLookingAtWall[client]++;
 		}
 		else {
-			
 			timeLookingAtWall[client] = 0;
 			
 			if (isKillProtected[client] && activeDisableTimer[client] != INVALID_HANDLE) {
 				
 				if (isWallKillProtected[client]) {
-					
 					isWallKillProtected[client] = false;
 					
 					new Float:disabletime_value = GetDisableTime(client);
@@ -354,12 +346,12 @@ public Event_PlayerSpawn(Handle:event, const String:name[], bool:broadcast)
 	}
 
 	isSpawnKillProtected[client] = true;
-	CreateTimer(0.1, Timer_EnableSpawnProtection, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.1, Timer_EnableSpawnProtection, client, TIMER_FLAG_NO_MAPCHANGE);
 
 	new Float:maxspawnprotection_value = GetMaxSpawnProtectionTime(client);
 
 	if (maxspawnprotection_value > 0.0) {
-		CreateTimer(maxspawnprotection_value, Timer_DisableSpawnProtection, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(maxspawnprotection_value, Timer_DisableSpawnProtection, client, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -393,7 +385,6 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 		damage = 0.0;
 		return Plugin_Changed;		
 	}
-
 	return Plugin_Continue;
 }
 
@@ -458,7 +449,6 @@ Float:GetDisableTime(client)
 	if (disabletime_value < 0.0) {
 		disabletime_value = GetConVarFloat(disabletime);
 	}
-	
 	return disabletime_value;
 }
 
