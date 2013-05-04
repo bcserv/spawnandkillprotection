@@ -6,7 +6,7 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.4.2"
+#define PLUGIN_VERSION "1.4.3"
 
 #define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN |  IN_WALK | IN_GRENADE1 | IN_GRENADE2 ) /* IN_SPEED |*/ 
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
@@ -62,6 +62,9 @@ new Handle:player_color_g                   = INVALID_HANDLE;
 new Handle:player_color_b                   = INVALID_HANDLE;
 new Handle:player_color_a                   = INVALID_HANDLE;
 
+new Handle:noblock                          = INVALID_HANDLE;
+new g_offsCollisionGroup                    = 0;
+
 // Misc
 new bool:bNoBlock                           = true;
 new bool:isKillProtected[MAXPLAYERS+1]      = { false, ... };
@@ -106,8 +109,13 @@ public OnPluginStart()
 	punishmode               = Sakp_CreateConVar("punishmode", "0", "0 = off, 1 = slap, 2 = decrease health 3 = slay, 4 = apply damage done to enemy");
 	notify                   = Sakp_CreateConVar("notify", "4", "0 = off, 1 = HUD message, 2 = center message, 3 = chat message, 4 = auto");
 	HookConVarChange(notify, ConVarChange_Notify);
-	Sakp_CreateConVar("noblock", "1", "1 = enable noblock when protected, 0 = disabled feature");
-	HookConVarChange(enabled, ConVarChange_Noblock);
+
+	noblock                   = Sakp_CreateConVar("noblock", "1", "1 = enable noblock when protected, 0 = disabled feature");
+ 	bNoBlock                  = GetConVarBool(noblock);
+
+	HookConVarChange(noblock, ConVarChange_Noblock);
+
+
 	disableonmoveshoot       = Sakp_CreateConVar("disableonmoveshoot", "1", "0 = don't disable, 1 = disable the spawnprotection when player moves or shoots, 2 = disable the spawn protection when shooting only");
 	disableweapondamage      = Sakp_CreateConVar("disableweapondamage", "0", "0 = spawn protected players can inflict damage, 1 = spawn protected players inflict no damage");
 	disabletime              = Sakp_CreateConVar("disabletime", "0", "Time in seconds until the protection is removed after the player moved and/or shooted, 0 = immediately");
@@ -126,6 +134,8 @@ public OnPluginStart()
 	player_color_b           = Sakp_CreateConVar("player_color_blue", "0", "amount of blue when a player is protected 0-255");
 	player_color_a           = Sakp_CreateConVar("player_alpha", "50", "alpha amount of a protected player 0-255");
 
+	g_offsCollisionGroup = FindSendPropOffs("CBaseEntity", "m_CollisionGroup");
+
 	AutoExecConfig(true);
 	File_LoadTranslations("spawnandkillprotection.phrases");
 
@@ -135,7 +145,7 @@ public OnPluginStart()
 	// Hooking the existing clients in case of lateload
 	LOOP_CLIENTS(client, CLIENTFILTER_INGAME | CLIENTFILTER_NOBOTS) {
 		SDKHook(client, SDKHook_OnTakeDamage,  Hook_OnTakeDamage);
-		SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
+//		SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
 	}
 
 	new value = GetConVarInt(notify);
@@ -184,7 +194,7 @@ public OnClientPutInServer(client)
 	activeDisableTimer[client] = INVALID_HANDLE;
 
 	SDKHook(client, SDKHook_OnTakeDamage,  Hook_OnTakeDamage);
-	SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
+//	SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
 }
 
 public OnGameFrame() 
@@ -271,6 +281,8 @@ public Action:Timer_EnableSpawnProtection(Handle:timer, any:client)
 	}
 	
 	isSpawnKillProtected[client] = true;
+
+
 	EnableKillProtection(client);
 	
 	return Plugin_Stop;
@@ -284,6 +296,9 @@ public Action:Timer_DisableSpawnProtection(Handle:timer, any:client)
 
 	activeDisableTimer[client] = INVALID_HANDLE;
 	isSpawnKillProtected[client] = false;
+
+
+
 	DisableKillProtection(client);
 	return Plugin_Stop;
 }
@@ -370,7 +385,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:broadcast)
 
 public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon,
 								Float:damageForce[3], Float:damagePosition[3], damagecustom)
-{
+{	
 	if (isKillProtected[victim]) {
 
 		ProtectedPlayerHurted(victim, inflictor, RoundToFloor(damage));
@@ -381,7 +396,6 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 
 	if(GetConVarBool(disableweapondamage) == true && isKillProtected[attacker]){
 //		ProtectedPlayerHurted(attacker, inflictor, RoundToFloor(damage));
-
 		damage = 0.0;
 		return Plugin_Changed;		
 	}
@@ -390,11 +404,12 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 
 public bool:Hook_ShouldCollide(entity, collisiongroup, contentsmask, bool:originalResult)
 {
-	if (isKillProtected[entity] && bNoBlock) {
+#if 0
+	if (isKillProtected[entity] && bNoBlock ) {
 		return false;
 	}
-
 	return true;
+#endif
 }
 
 
@@ -542,6 +557,10 @@ EnableKillProtection(client)
 		Client_ScreenFade(client, 0, FFADE_OUT | FFADE_STAYOUT | FFADE_PURGE, -1, 0, 0, 0, 240);
 	}
 
+	if(bNoBlock){
+		SetEntData(client, g_offsCollisionGroup, 2, 4, true);
+	}
+
 	NotifyClientEnableProtection(client);
 }
 
@@ -567,6 +586,10 @@ DisableKillProtection(client)
 	
 	if (GetConVarBool(fadescreen)) {
 		Client_ScreenFade(client, 0, FFADE_IN | FFADE_PURGE, -1, 0, 0, 0, 0);
+	}
+
+	if(bNoBlock){
+		SetEntData(client, g_offsCollisionGroup, 0, 4, true);
 	}
 	
 	NotifyClientDisableProtection(client);
