@@ -11,6 +11,7 @@
 #define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN |  IN_WALK | IN_GRENADE1 | IN_GRENADE2 )
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
 
+
 /*****************************************************************
 
 
@@ -61,11 +62,12 @@ new Handle:player_color_r                   = INVALID_HANDLE;
 new Handle:player_color_g                   = INVALID_HANDLE;
 new Handle:player_color_b                   = INVALID_HANDLE;
 new Handle:player_color_a                   = INVALID_HANDLE;
-
 new Handle:noblock                          = INVALID_HANDLE;
+new Handle:collisiongroupcvar               = INVALID_HANDLE;
 
 // Misc
 new bool:bNoBlock                           = true;
+new defaultcollisiongroup                   = 8;
 new bool:isKillProtected[MAXPLAYERS+1]      = { false, ... };
 new bool:isSpawnKillProtected[MAXPLAYERS+1] = { false, ... };
 new bool:isWallKillProtected[MAXPLAYERS+1]  = { false, ... };
@@ -111,9 +113,12 @@ public OnPluginStart()
 
 	noblock                   = Sakp_CreateConVar("noblock", "1", "1 = enable noblock when protected, 0 = disabled feature");
  	bNoBlock                  = GetConVarBool(noblock);
-
+	
 	HookConVarChange(noblock, ConVarChange_Noblock);
 
+	collisiongroupcvar       = Sakp_CreateConVar("collisiongroup", "8", "Collision group players are part of.  Change to match group if you are using a noblock or anti stick plugin");
+	defaultcollisiongroup    = GetConVarInt(collisiongroupcvar);
+        HookConVarChange(collisiongroupcvar, ConVarChange_CollisionGroup);
 
 	disableonmoveshoot       = Sakp_CreateConVar("disableonmoveshoot", "1", "0 = don't disable, 1 = disable the spawnprotection when player moves or shoots, 2 = disable the spawn protection when shooting only");
 	disableweapondamage      = Sakp_CreateConVar("disableweapondamage", "0", "0 = spawn protected players can inflict damage, 1 = spawn protected players inflict no damage");
@@ -271,6 +276,12 @@ public ConVarChange_Noblock(Handle:convar, const String:oldValue[], const String
 	bNoBlock = bool:StringToInt(newValue);
 }
 
+
+public ConVarChange_CollisionGroup(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	defaultcollisiongroup = StringToInt(newValue);
+}
+
 public Action:Timer_EnableSpawnProtection(Handle:timer, any:userId)
 {
 	new client = GetClientOfUserId(userId);	
@@ -403,6 +414,9 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 
 public bool:Hook_ShouldCollide(entity, collisiongroup, contentsmask, bool:originalResult)
 {
+	if(collisiongroup != defaultcollisiongroup){		
+		return(true);
+	}
 	if (isKillProtected[entity] && bNoBlock ) {
 		return false;
 	}
