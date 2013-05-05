@@ -6,7 +6,7 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.4.4"
+#define PLUGIN_VERSION "1.4.5"
 
 #define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN |  IN_WALK | IN_GRENADE1 | IN_GRENADE2 )
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
@@ -63,7 +63,6 @@ new Handle:player_color_b                   = INVALID_HANDLE;
 new Handle:player_color_a                   = INVALID_HANDLE;
 
 new Handle:noblock                          = INVALID_HANDLE;
-new g_offsCollisionGroup                    = 0;
 
 // Misc
 new bool:bNoBlock                           = true;
@@ -134,8 +133,6 @@ public OnPluginStart()
 	player_color_b           = Sakp_CreateConVar("player_color_blue", "0", "amount of blue when a player is protected 0-255");
 	player_color_a           = Sakp_CreateConVar("player_alpha", "50", "alpha amount of a protected player 0-255");
 
-	g_offsCollisionGroup = FindSendPropOffs("CBaseEntity", "m_CollisionGroup");
-
 	AutoExecConfig(true);
 	File_LoadTranslations("spawnandkillprotection.phrases");
 
@@ -145,7 +142,7 @@ public OnPluginStart()
 	// Hooking the existing clients in case of lateload
 	LOOP_CLIENTS(client, CLIENTFILTER_INGAME | CLIENTFILTER_NOBOTS) {
 		SDKHook(client, SDKHook_OnTakeDamage,  Hook_OnTakeDamage);
-//		SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
+		SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
 	}
 
 	new value = GetConVarInt(notify);
@@ -194,7 +191,7 @@ public OnClientPutInServer(client)
 	activeDisableTimer[client] = INVALID_HANDLE;
 
 	SDKHook(client, SDKHook_OnTakeDamage,  Hook_OnTakeDamage);
-//	SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
+	SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
 }
 
 public OnGameFrame() 
@@ -363,7 +360,7 @@ public Event_PlayerSpawn(Handle:event, const String:name[], bool:broadcast)
 	}
 
 	isSpawnKillProtected[client] = true;
-	CreateTimer(0.1, Timer_EnableSpawnProtection, client, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.1, Timer_EnableSpawnProtection, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 
 	new Float:maxspawnprotection_value = GetMaxSpawnProtectionTime(client);
 
@@ -557,10 +554,6 @@ EnableKillProtection(client)
 		Client_ScreenFade(client, 0, FFADE_OUT | FFADE_STAYOUT | FFADE_PURGE, -1, 0, 0, 0, 240);
 	}
 
-	if(bNoBlock){
-		SetEntData(client, g_offsCollisionGroup, 2, 4, true);
-	}
-
 	NotifyClientEnableProtection(client);
 }
 
@@ -588,10 +581,6 @@ DisableKillProtection(client)
 		Client_ScreenFade(client, 0, FFADE_IN | FFADE_PURGE, -1, 0, 0, 0, 0);
 	}
 
-	if(bNoBlock){
-		SetEntData(client, g_offsCollisionGroup, 0, 4, true);
-	}
-	
 	NotifyClientDisableProtection(client);
 }
 
