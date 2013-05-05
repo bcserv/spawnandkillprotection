@@ -6,9 +6,9 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.4.3"
+#define PLUGIN_VERSION "1.4.4"
 
-#define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN |  IN_WALK | IN_GRENADE1 | IN_GRENADE2 ) /* IN_SPEED |*/ 
+#define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN |  IN_WALK | IN_GRENADE1 | IN_GRENADE2 )
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
 
 /*****************************************************************
@@ -230,7 +230,7 @@ public OnGameFrame()
 
 			new Float:disabletime_value = GetDisableTime(client);
 			if (disabletime_value > 0.0) {
-				activeDisableTimer[client] = CreateTimer(disabletime_value, Timer_DisableSpawnProtection, client, TIMER_FLAG_NO_MAPCHANGE);
+				activeDisableTimer[client] = CreateTimer(disabletime_value, Timer_DisableSpawnProtection, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 			}
 			else {
 				DisableKillProtection(client);
@@ -274,8 +274,9 @@ public ConVarChange_Noblock(Handle:convar, const String:oldValue[], const String
 	bNoBlock = bool:StringToInt(newValue);
 }
 
-public Action:Timer_EnableSpawnProtection(Handle:timer, any:client)
+public Action:Timer_EnableSpawnProtection(Handle:timer, any:userId)
 {
+	new client = GetClientOfUserId(userId);	
 	if (client == 0 || !IsClientInGame(client) || !IsPlayerAlive(client)) {
 		return Plugin_Stop;
 	}
@@ -288,8 +289,9 @@ public Action:Timer_EnableSpawnProtection(Handle:timer, any:client)
 	return Plugin_Stop;
 }
 
-public Action:Timer_DisableSpawnProtection(Handle:timer, any:client)
+public Action:Timer_DisableSpawnProtection(Handle:timer, any:userId)
 {
+	new client = GetClientOfUserId(userId);
 	if (client == 0 || !IsClientInGame(client) || !IsPlayerAlive(client)) {
 		return Plugin_Stop;
 	}
@@ -335,7 +337,7 @@ public Action:Timer_CheckWall(Handle:timer)
 					
 					new Float:disabletime_value = GetDisableTime(client);
 					if (disabletime_value > 0.0) {
-						activeDisableTimer[client] = CreateTimer(disabletime_value, Timer_DisableSpawnProtection, client, TIMER_FLAG_NO_MAPCHANGE);
+						activeDisableTimer[client] = CreateTimer(disabletime_value, Timer_DisableSpawnProtection, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 					}
 					else {
 						DisableKillProtection(client);
@@ -366,7 +368,7 @@ public Event_PlayerSpawn(Handle:event, const String:name[], bool:broadcast)
 	new Float:maxspawnprotection_value = GetMaxSpawnProtectionTime(client);
 
 	if (maxspawnprotection_value > 0.0) {
-		CreateTimer(maxspawnprotection_value, Timer_DisableSpawnProtection, client, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(maxspawnprotection_value, Timer_DisableSpawnProtection, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -404,12 +406,10 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 
 public bool:Hook_ShouldCollide(entity, collisiongroup, contentsmask, bool:originalResult)
 {
-#if 0
 	if (isKillProtected[entity] && bNoBlock ) {
 		return false;
 	}
 	return true;
-#endif
 }
 
 
