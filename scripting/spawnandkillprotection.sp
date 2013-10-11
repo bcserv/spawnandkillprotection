@@ -6,7 +6,7 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.4.7"
+#define PLUGIN_VERSION "1.4.6"
 
 #define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN |  IN_WALK | IN_GRENADE1 | IN_GRENADE2 )
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
@@ -237,7 +237,6 @@ public OnGameFrame()
 			}
 			
 			if (isSpawnKillProtected[client]) {
-				PrintToServer("Client %d = %d", client, clientButtons);
 				if (GetConVarInt(disableonmoveshoot) == 0) {
 					continue;
 				}
@@ -419,11 +418,6 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 
 		damage = 0.0;
 		return Plugin_Changed;
-	}
-
-	if(attacker < 0 || attacker > MAXPLAYERS ) {
-		PrintToServer("spawnandkillprotection: Hook_OnTakeDamage: Attacker is %d weapon=%s", attacker,weapon);
-		return(Plugin_Continue);
 	}
 
 	if(GetConVarBool(disableweapondamage) == true && isKillProtected[attacker]){
