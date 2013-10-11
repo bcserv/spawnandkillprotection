@@ -6,7 +6,7 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.4.5"
+#define PLUGIN_VERSION "1.4.7"
 
 #define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN |  IN_WALK | IN_GRENADE1 | IN_GRENADE2 )
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
@@ -22,7 +22,7 @@
 
 public Plugin:myinfo = {
 	name = "Spawn & kill protection",
-	author = "Berni, Chanz, ph",
+	author = "Berni, Chanz, ph, [foo] bar",
 	description = "Spawn protection against spawnkilling and kill protection when you stand close to the wall for a longer time",
 	version = PLUGIN_VERSION,
 	url = "http://forums.alliedmods.net/showthread.php?p=901294"
@@ -64,6 +64,7 @@ new Handle:player_color_b                   = INVALID_HANDLE;
 new Handle:player_color_a                   = INVALID_HANDLE;
 new Handle:noblock                          = INVALID_HANDLE;
 new Handle:collisiongroupcvar               = INVALID_HANDLE;
+new Handle:otherPlugins                     = INVALID_HANDLE;
 
 // Misc
 new bool:bNoBlock                           = true;
@@ -116,7 +117,7 @@ public OnPluginStart()
 	
 	HookConVarChange(noblock, ConVarChange_Noblock);
 
-	collisiongroupcvar       = Sakp_CreateConVar("collisiongroup", "8", "Collision group players are part of.  Change to match group if you are using a noblock or anti stick plugin");
+	collisiongroupcvar       = Sakp_CreateConVar("collisiongroup", "8", "Collision group players are part of.  Change to match group if you are using a noblock.smx (2) or anti stick plugin");
 	defaultcollisiongroup    = GetConVarInt(collisiongroupcvar);
         HookConVarChange(collisiongroupcvar, ConVarChange_CollisionGroup);
 
@@ -138,6 +139,7 @@ public OnPluginStart()
 	player_color_b           = Sakp_CreateConVar("player_color_blue", "0", "amount of blue when a player is protected 0-255");
 	player_color_a           = Sakp_CreateConVar("player_alpha", "50", "alpha amount of a protected player 0-255");
 
+	otherPlugins             = Sakp_CreateConVar("otherplugins_consolecmds", "+hook +jet +jetpack", "Console commands of 3rd party plugins that should disable spawn protection");
 	AutoExecConfig(true);
 	File_LoadTranslations("spawnandkillprotection.phrases");
 
@@ -156,7 +158,22 @@ public OnPluginStart()
 		CreateTestHudSynchronizer();
 	}
 
+	new String:otherPluginCmds[1000];
+	GetConVarString(otherPlugins, otherPluginCmds, sizeof(otherPluginCmds));
+	if(otherPluginCmds[0] != '\0'){
+		new String:otherPluginCmdsA[50][20];
+		new numOtherCmds = ExplodeString(otherPluginCmds, " ", otherPluginCmdsA, sizeof(otherPluginCmdsA), sizeof(otherPluginCmdsA[]));
+		for(new i=0; i < numOtherCmds; i++){
+			RegConsoleCmd(otherPluginCmdsA[i], Command_OtherPluginDisableClientProtection);
+		}
+	}
+
 	RegAdminCmd("sm_enablekillprotection", Command_EnableKillProtection, ADMFLAG_ROOT);
+}
+
+public Action:Command_OtherPluginDisableClientProtection(client, args)
+{
+	DisableKillProtection(client);
 }
 
 public Action:Command_EnableKillProtection(client, args)
@@ -220,7 +237,7 @@ public OnGameFrame()
 			}
 			
 			if (isSpawnKillProtected[client]) {
-				
+				PrintToServer("Client %d = %d", client, clientButtons);
 				if (GetConVarInt(disableonmoveshoot) == 0) {
 					continue;
 				}
@@ -402,6 +419,11 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 
 		damage = 0.0;
 		return Plugin_Changed;
+	}
+
+	if(attacker < 0 || attacker > MAXPLAYERS ) {
+		PrintToServer("spawnandkillprotection: Hook_OnTakeDamage: Attacker is %d weapon=%s", attacker,weapon);
+		return(Plugin_Continue);
 	}
 
 	if(GetConVarBool(disableweapondamage) == true && isKillProtected[attacker]){
