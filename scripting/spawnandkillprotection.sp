@@ -6,7 +6,7 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.4.5"
+#define PLUGIN_VERSION "1.4.7"
 
 #define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN |  IN_WALK | IN_GRENADE1 | IN_GRENADE2 )
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
@@ -22,7 +22,7 @@
 
 public Plugin:myinfo = {
 	name = "Spawn & kill protection",
-	author = "Berni, Chanz, ph",
+	author = "Berni, Chanz, ph, [foo] bar",
 	description = "Spawn protection against spawnkilling and kill protection when you stand close to the wall for a longer time",
 	version = PLUGIN_VERSION,
 	url = "http://forums.alliedmods.net/showthread.php?p=901294"
@@ -64,6 +64,8 @@ new Handle:player_color_b                   = INVALID_HANDLE;
 new Handle:player_color_a                   = INVALID_HANDLE;
 new Handle:noblock                          = INVALID_HANDLE;
 new Handle:collisiongroupcvar               = INVALID_HANDLE;
+new Handle:otherPlugins                     = INVALID_HANDLE;
+new Handle:overlay                          = INVALID_HANDLE;
 
 // Misc
 new bool:bNoBlock                           = true;
@@ -116,7 +118,7 @@ public OnPluginStart()
 	
 	HookConVarChange(noblock, ConVarChange_Noblock);
 
-	collisiongroupcvar       = Sakp_CreateConVar("collisiongroup", "8", "Collision group players are part of.  Change to match group if you are using a noblock or anti stick plugin");
+	collisiongroupcvar       = Sakp_CreateConVar("collisiongroup", "8", "Collision group players are part of.  Change to match group if you are using a noblock.smx (2) or anti stick plugin");
 	defaultcollisiongroup    = GetConVarInt(collisiongroupcvar);
         HookConVarChange(collisiongroupcvar, ConVarChange_CollisionGroup);
 
@@ -133,11 +135,13 @@ public OnPluginStart()
 	maxspawnprotection_team2 = Sakp_CreateConVar("maxspawnprotection_team2", "-1", "same as sakp_maxspawnprotection, but for team 2 only (overrides sakp_maxspawnprotection if not set to -1)",FCVAR_PLUGIN);
 	fadescreen               = Sakp_CreateConVar("fadescreen", "1", "Fade screen to black");
 	hidehud                  = Sakp_CreateConVar("hidehud", "1", "Set to 1 to hide the HUD when being protected");
+	overlay			 = Sakp_CreateConVar("overlay", "", "Overlay material to display.  fadescreen should be set to 0 if you use this");
 	player_color_r           = Sakp_CreateConVar("player_color_red", "255", "amount of red when a player is protected 0-255");
 	player_color_g           = Sakp_CreateConVar("player_color_green", "0", "amount of green when a player is protected 0-255");
 	player_color_b           = Sakp_CreateConVar("player_color_blue", "0", "amount of blue when a player is protected 0-255");
 	player_color_a           = Sakp_CreateConVar("player_alpha", "50", "alpha amount of a protected player 0-255");
 
+	otherPlugins             = Sakp_CreateConVar("otherplugins_consolecmds", "+hook +jet +jetpack", "Console commands of 3rd party plugins that should disable spawn protection");
 	AutoExecConfig(true);
 	File_LoadTranslations("spawnandkillprotection.phrases");
 
@@ -156,7 +160,22 @@ public OnPluginStart()
 		CreateTestHudSynchronizer();
 	}
 
+	new String:otherPluginCmds[1000];
+	GetConVarString(otherPlugins, otherPluginCmds, sizeof(otherPluginCmds));
+	if(otherPluginCmds[0] != '\0'){
+		new String:otherPluginCmdsA[50][20];
+		new numOtherCmds = ExplodeString(otherPluginCmds, " ", otherPluginCmdsA, sizeof(otherPluginCmdsA), sizeof(otherPluginCmdsA[]));
+		for(new i=0; i < numOtherCmds; i++){
+			RegConsoleCmd(otherPluginCmdsA[i], Command_OtherPluginDisableClientProtection);
+		}
+	}
+
 	RegAdminCmd("sm_enablekillprotection", Command_EnableKillProtection, ADMFLAG_ROOT);
+}
+
+public Action:Command_OtherPluginDisableClientProtection(client, args)
+{
+	DisableKillProtection(client);
 }
 
 public Action:Command_EnableKillProtection(client, args)
@@ -220,7 +239,6 @@ public OnGameFrame()
 			}
 			
 			if (isSpawnKillProtected[client]) {
-				
 				if (GetConVarInt(disableonmoveshoot) == 0) {
 					continue;
 				}
@@ -568,6 +586,12 @@ EnableKillProtection(client)
 		Client_ScreenFade(client, 0, FFADE_OUT | FFADE_STAYOUT | FFADE_PURGE, -1, 0, 0, 0, 240);
 	}
 
+	new String:overlayFile[255];
+	GetConVarString(overlay, overlayFile, sizeof(overlayFile));
+	if(overlayFile[0]!='\0'){
+		ClientCommand(client, "r_screenoverlay %s", overlayFile);
+	}
+
 	NotifyClientEnableProtection(client);
 }
 
@@ -593,6 +617,12 @@ DisableKillProtection(client)
 	
 	if (GetConVarBool(fadescreen)) {
 		Client_ScreenFade(client, 0, FFADE_IN | FFADE_PURGE, -1, 0, 0, 0, 0);
+	}
+
+	new String:overlayFile[255];
+	GetConVarString(overlay, overlayFile, sizeof(overlayFile));
+	if(overlayFile[0]!='\0'){
+		ClientCommand(client, "r_screenoverlay off");
 	}
 
 	NotifyClientDisableProtection(client);
