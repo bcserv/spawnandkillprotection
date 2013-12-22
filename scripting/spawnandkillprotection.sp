@@ -6,7 +6,7 @@
 #include <sdkhooks>
 #include <smlib>
 
-#define PLUGIN_VERSION "1.4.6"
+#define PLUGIN_VERSION "1.4.7"
 
 #define KILLPROTECTION_DISABLE_BUTTONS (IN_ATTACK | IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_USE | IN_LEFT | IN_RIGHT | IN_MOVELEFT | IN_MOVERIGHT | IN_ATTACK2 | IN_RUN |  IN_WALK | IN_GRENADE1 | IN_GRENADE2 )
 #define SHOOT_DISABLE_BUTTONS (IN_ATTACK | IN_ATTACK2)
@@ -65,6 +65,7 @@ new Handle:player_color_a                   = INVALID_HANDLE;
 new Handle:noblock                          = INVALID_HANDLE;
 new Handle:collisiongroupcvar               = INVALID_HANDLE;
 new Handle:otherPlugins                     = INVALID_HANDLE;
+new Handle:overlay                          = INVALID_HANDLE;
 
 // Misc
 new bool:bNoBlock                           = true;
@@ -134,6 +135,7 @@ public OnPluginStart()
 	maxspawnprotection_team2 = Sakp_CreateConVar("maxspawnprotection_team2", "-1", "same as sakp_maxspawnprotection, but for team 2 only (overrides sakp_maxspawnprotection if not set to -1)",FCVAR_PLUGIN);
 	fadescreen               = Sakp_CreateConVar("fadescreen", "1", "Fade screen to black");
 	hidehud                  = Sakp_CreateConVar("hidehud", "1", "Set to 1 to hide the HUD when being protected");
+	overlay			 = Sakp_CreateConVar("overlay", "", "Overlay material to display.  fadescreen should be set to 0 if you use this");
 	player_color_r           = Sakp_CreateConVar("player_color_red", "255", "amount of red when a player is protected 0-255");
 	player_color_g           = Sakp_CreateConVar("player_color_green", "0", "amount of green when a player is protected 0-255");
 	player_color_b           = Sakp_CreateConVar("player_color_blue", "0", "amount of blue when a player is protected 0-255");
@@ -584,6 +586,12 @@ EnableKillProtection(client)
 		Client_ScreenFade(client, 0, FFADE_OUT | FFADE_STAYOUT | FFADE_PURGE, -1, 0, 0, 0, 240);
 	}
 
+	new String:overlayFile[255];
+	GetConVarString(overlay, overlayFile, sizeof(overlayFile));
+	if(overlayFile[0]!='\0'){
+		ClientCommand(client, "r_screenoverlay %s", overlayFile);
+	}
+
 	NotifyClientEnableProtection(client);
 }
 
@@ -609,6 +617,12 @@ DisableKillProtection(client)
 	
 	if (GetConVarBool(fadescreen)) {
 		Client_ScreenFade(client, 0, FFADE_IN | FFADE_PURGE, -1, 0, 0, 0, 0);
+	}
+
+	new String:overlayFile[255];
+	GetConVarString(overlay, overlayFile, sizeof(overlayFile));
+	if(overlayFile[0]!='\0'){
+		ClientCommand(client, "r_screenoverlay off");
 	}
 
 	NotifyClientDisableProtection(client);
