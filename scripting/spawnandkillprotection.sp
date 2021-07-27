@@ -397,19 +397,14 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 								Float:damageForce[3], Float:damagePosition[3], damagecustom)
 {	
 	if (isKillProtected[victim]) {
-
 		ProtectedPlayerHurted(victim, inflictor, RoundToFloor(damage));
-
-		damage = 0.0;
-		return Plugin_Changed;
+	}
+	else if (!GetConVarBool(disableweapondamage) || attacker > MaxClients || !isKillProtected[attacker]) {
+		return Plugin_Continue;
 	}
 
-	if(GetConVarBool(disableweapondamage) == true && isKillProtected[attacker]){
-//		ProtectedPlayerHurted(attacker, inflictor, RoundToFloor(damage));
-		damage = 0.0;
-		return Plugin_Changed;		
-	}
-	return Plugin_Continue;
+	damage = 0.0;
+	return Plugin_Changed;
 }
 
 public bool:Hook_ShouldCollide(entity, collisiongroup, contentsmask, bool:originalResult)
