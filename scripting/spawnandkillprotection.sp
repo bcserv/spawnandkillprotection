@@ -577,6 +577,8 @@ DisableKillProtection(client)
 		return;
 	}
 
+	NotifyClientDisableProtection(client);
+
 	isKillProtected[client] =  false;
 	isSpawnKillProtected[client] = false;
 	isWallKillProtected[client] = false;
@@ -594,8 +596,6 @@ DisableKillProtection(client)
 	if (GetConVarBool(fadescreen)) {
 		Client_ScreenFade(client, 0, FFADE_IN | FFADE_PURGE, -1, 0, 0, 0, 0);
 	}
-
-	NotifyClientDisableProtection(client);
 }
 
 DisableKillProtectionAll()
