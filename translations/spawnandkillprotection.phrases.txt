@@ -5,7 +5,8 @@
 	{
 		"en"	"Warning: Hud messages are not supported in this mod, setting sakp_notify to value 2..."
 		"de"	"Warnung: Hud Nachrichten werden von diesem Spiel nicht unterstützt, setze sakp_notify auf den Wert 2..."
-		"fr" 	"Attention : Les notifications HUD ne sont pas supportées par ce mod, en mettant sakp_notify sur 2..."
+		"fr"	"Attention : Les notifications HUD ne sont pas supportées par ce mod, en mettant sakp_notify sur 2..."
+		"es"	"Aviso: Los mensajes de HUD no están soportados en este mod, fijando sakp_notify al valor 2..."
 	}
 
 	"Spawnprotection Enabled"
@@ -13,6 +14,7 @@
 		"en"	"Spawnprotection Enabled"
 		"de"	"Spawnschutz Aktiviert"
 		"fr"	"Spawn protection : Activée"
+		"es"	"Protección de Aparición Activa"
 	}
 
 	"Spawnprotection Disabled"
@@ -20,6 +22,7 @@
 		"en"	"Spawnprotection Disabled"
 		"de"	"Spawnschutz Deaktiviert"
 		"fr"	"Spawn protection : Désactivée"
+		"es"	"Protección de Aparición Desactivada"
 	}
 
 	"Killprotection Enabled"
@@ -27,6 +30,7 @@
 		"en"	"Killprotection Enabled"
 		"de"	"Killschutz Aktiviert"
 		"fr"	"Kill protection : Activée"
+		"es"	"Protección de Matanza Activa"
 	}
 
 	"Killprotection Disabled"
@@ -34,5 +38,6 @@
 		"en"	"Killprotection Disabled"
 		"de"	"Killschutz Deaktiviert"
 		"fr"	"Kill protection : Désactivée"
+		"es"	"Protección de Matanza Desactivada"
 	}
 }
