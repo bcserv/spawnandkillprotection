@@ -500,9 +500,9 @@ Float:GetKeyPressIgnoreTime(client)
 
 public Native_IsClientProtected(Handle:plugin, numParams)
 {
-	new bool:isClientProtected = GetNativeCell(1);
-
-	return isKillProtected[isClientProtected];
+	new client = GetNativeCell(1);
+	SetNativeCellRef(2, isWallKillProtected[client]);
+	return isKillProtected[client];
 }
 
 CreateTestHudSynchronizer()

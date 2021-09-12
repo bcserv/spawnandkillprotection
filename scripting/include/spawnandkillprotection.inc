@@ -27,6 +27,7 @@ public __pl_sakprotection_SetNTVOptional()
  * Returns if a client is currently protected.
  *
  * @param client    Client index.
+ * @param wall      True if client is wall-protected, false otherwise.
  * @return          Returns true if the client is protected otherwise false.
  */
-native bool:SAKP_IsClientProtected(client);
+native bool:SAKP_IsClientProtected(client, &bool:wall = false);
