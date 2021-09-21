@@ -143,6 +143,7 @@ public OnPluginStart()
 
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("player_death", Event_PlayerDeath);
+	HookEvent("player_team", Event_PlayerDeath); // Reuse callback, valid for our needs
 
 	// Hooking the existing clients in case of lateload
 	LOOP_CLIENTS(client, CLIENTFILTER_INGAME | CLIENTFILTER_NOBOTS) {
