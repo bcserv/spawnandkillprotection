@@ -87,9 +87,10 @@ new Handle:hudSynchronizer                  = INVALID_HANDLE;
 *****************************************************************/
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
-{	
-   CreateNative("SAKP_IsClientProtected", Native_IsClientProtected);
-   return APLRes_Success;
+{
+	RegPluginLibrary("sakprotection");
+	CreateNative("SAKP_IsClientProtected", Native_IsClientProtected);
+	return APLRes_Success;
 }
 
 public OnPluginStart()
