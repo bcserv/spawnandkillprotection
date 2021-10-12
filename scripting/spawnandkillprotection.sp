@@ -194,10 +194,18 @@ public OnClientPutInServer(client)
 	isWallKillProtected[client] = false;
 	keyPressOnTime[client] = 0.0;
 	timeLookingAtWall[client] = 0;
-	activeDisableTimer[client] = INVALID_HANDLE;
 
 	SDKHook(client, SDKHook_OnTakeDamage,  Hook_OnTakeDamage);
 	SDKHook(client, SDKHook_ShouldCollide, Hook_ShouldCollide);
+}
+
+public OnClientDisconnect(client)
+{
+	if (activeDisableTimer[client] != INVALID_HANDLE)
+	{
+		KillTimer(activeDisableTimer[client]);
+		activeDisableTimer[client] = INVALID_HANDLE;
+	}
 }
 
 public OnGameFrame() 
@@ -301,15 +309,13 @@ public Action:Timer_EnableSpawnProtection(Handle:timer, any:userId)
 public Action:Timer_DisableSpawnProtection(Handle:timer, any:userId)
 {
 	new client = GetClientOfUserId(userId);
+	activeDisableTimer[client] = INVALID_HANDLE;
+
 	if (client == 0 || !IsClientInGame(client) || !IsPlayerAlive(client)) {
 		return Plugin_Stop;
 	}
 
-	activeDisableTimer[client] = INVALID_HANDLE;
 	isSpawnKillProtected[client] = false;
-
-
-
 	DisableKillProtection(client);
 	return Plugin_Stop;
 }
@@ -324,12 +330,7 @@ public Action:Timer_CheckWall(Handle:timer)
 		
 		if (Client_IsLookingAtWall(client) && !(Client_GetButtons(client) & KILLPROTECTION_DISABLE_BUTTONS)) {
 			if (!isWallKillProtected[client] && timeLookingAtWall[client] >= GetConVarInt(walltime)) {
-				
-				if (activeDisableTimer[client] != INVALID_HANDLE) {
-					KillTimer(activeDisableTimer[client]);	
-					activeDisableTimer[client] = INVALID_HANDLE;
-				}
-				
+				OnClientDisconnect(client);
 				isWallKillProtected[client] = true;
 				EnableKillProtection(client);
 			}
