@@ -87,9 +87,10 @@ new Handle:hudSynchronizer                  = INVALID_HANDLE;
 *****************************************************************/
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
-{	
-   CreateNative("SAKP_IsClientProtected", Native_IsClientProtected);
-   return APLRes_Success;
+{
+	RegPluginLibrary("sakprotection");
+	CreateNative("SAKP_IsClientProtected", Native_IsClientProtected);
+	return APLRes_Success;
 }
 
 public OnPluginStart()
@@ -128,9 +129,9 @@ public OnPluginStart()
 	keypressignoretime       = Sakp_CreateConVar("keypressignoretime", "0.8", "The amount of time in seconds pressing any keys will not turn off spawn protection");
 	keypressignoretime_team1 = Sakp_CreateConVar("keypressignoretime_team1", "-1", "same as sakp_keypressignoretime, but for team 1 only (overrides sakp_keypressignoretime if not set to -1)");
 	keypressignoretime_team2 = Sakp_CreateConVar("keypressignoretime_team2", "-1", "same as sakp_keypressignoretime, but for team 1 only (overrides sakp_keypressignoretime if not set to -1)");
-	maxspawnprotection       = Sakp_CreateConVar("maxspawnprotection", "0", "max timelimit in seconds the spawnprotection stays, 0 = no limit",FCVAR_PLUGIN);
-	maxspawnprotection_team1 = Sakp_CreateConVar("maxspawnprotection_team1", "-1", "same as sakp_maxspawnprotection, but for team 1 only (overrides sakp_maxspawnprotection if not set to -1)",FCVAR_PLUGIN);
-	maxspawnprotection_team2 = Sakp_CreateConVar("maxspawnprotection_team2", "-1", "same as sakp_maxspawnprotection, but for team 2 only (overrides sakp_maxspawnprotection if not set to -1)",FCVAR_PLUGIN);
+	maxspawnprotection       = Sakp_CreateConVar("maxspawnprotection", "0", "max timelimit in seconds the spawnprotection stays, 0 = no limit");
+	maxspawnprotection_team1 = Sakp_CreateConVar("maxspawnprotection_team1", "-1", "same as sakp_maxspawnprotection, but for team 1 only (overrides sakp_maxspawnprotection if not set to -1)");
+	maxspawnprotection_team2 = Sakp_CreateConVar("maxspawnprotection_team2", "-1", "same as sakp_maxspawnprotection, but for team 2 only (overrides sakp_maxspawnprotection if not set to -1)");
 	fadescreen               = Sakp_CreateConVar("fadescreen", "1", "Fade screen to black");
 	hidehud                  = Sakp_CreateConVar("hidehud", "1", "Set to 1 to hide the HUD when being protected");
 	player_color_r           = Sakp_CreateConVar("player_color_red", "255", "amount of red when a player is protected 0-255");
@@ -500,9 +501,9 @@ Float:GetKeyPressIgnoreTime(client)
 
 public Native_IsClientProtected(Handle:plugin, numParams)
 {
-	new bool:isClientProtected = GetNativeCell(1);
-
-	return isKillProtected[isClientProtected];
+	new client = GetNativeCell(1);
+	SetNativeCellRef(2, isWallKillProtected[client]);
+	return isKillProtected[client];
 }
 
 CreateTestHudSynchronizer()
@@ -697,5 +698,5 @@ Handle:Sakp_CreateConVar(
 	Format(newName, sizeof(newName), "sakp_%s", name);
 	Format(newDescription, sizeof(newDescription), "Sourcemod Spawn & kill protection plugin:\n%s", description);
 
-	return CreateConVar(newName, defaultValue, newDescription, flags | FCVAR_PLUGIN, hasMin, min, hasMax, max);
+	return CreateConVar(newName, defaultValue, newDescription, flags, hasMin, min, hasMax, max);
 }
