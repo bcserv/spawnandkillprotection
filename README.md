@@ -1,3 +1,5 @@
+**This project is not maintained anymore, please fork this**
+
 Spawn and kill protection
 =================
 
